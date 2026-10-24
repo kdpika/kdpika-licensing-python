@@ -95,8 +95,9 @@ def verify_wheel() -> None:
             if key not in {"Version", "Project-URL"}:
                 assert before.get_all(key) == after.get_all(key), "Package metadata changed: " + key
         assert after["Version"] == "1.1.6"
-        assert after.get_payload() == (ROOT / "README.md").read_text()
-        assert "## Install from the source ZIP" in after.get_payload()
+        description = new.read(new_prefix + "METADATA").split(b"\n\n", 1)[1].decode("utf-8")
+        assert description.rstrip("\n") == (ROOT / "README.md").read_text().rstrip("\n")
+        assert "## Install from the source ZIP" in description
 
 
 if __name__ == "__main__":
