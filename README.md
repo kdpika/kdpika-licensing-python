@@ -1,14 +1,14 @@
 # KDPika Licensing Python SDK
 
 Official Python client for license activation, signed validation, controlled
-offline access, feature checks and deactivation. **Python 3.11–3.14**, SDK **1.1.5**,
+offline access, feature checks and deactivation. **Python 3.11–3.14**, SDK **1.1.6**,
 MIT licensed.
 
-[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python) · [Download SDK ZIP](https://github.com/kdpika/kdpika-licensing-python/releases/download/v1.1.5/kdpika-python-sdk-1.1.5.zip) · [PyPI package](https://pypi.org/project/kdpika-licensing/)
+[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python) · [Download SDK ZIP](https://github.com/kdpika/kdpika-licensing-python/releases/download/v1.1.6/kdpika-python-sdk-1.1.6.zip) · [PyPI package](https://pypi.org/project/kdpika-licensing/)
 
 ## Install from the source ZIP
 
-Download [kdpika-python-sdk-1.1.5.zip from KDPika](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-1.1.5.zip)
+Download [kdpika-python-sdk-1.1.6.zip from KDPika](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-1.1.6.zip)
 or the identical versioned asset from GitHub Releases. Verify its SHA-256 against
 the [download table](https://licensing.kdpika.com/docs/v1/sdks/overview#download-and-verify),
 then extract the `kdpika-python-sdk` directory beside your application.
@@ -62,7 +62,7 @@ Python >=3.11,<3.15. Create a private virtualenv:
 python -m venv .venv
 # Activate the virtualenv using your shell, then:
 python -m pip install --upgrade "pip>=26.2.1,<27"
-python -m pip install "kdpika-licensing==1.1.5"
+python -m pip install "kdpika-licensing==1.1.6"
 ~~~
 
 Windows PowerShell activation: `.venv/Scripts/Activate.ps1`.
@@ -440,6 +440,9 @@ customer credentials in a public issue. No guaranteed response SLA is claimed.
 
 ## Changelog and contributing
 
+1.1.6 updates documentation and repository links only; the runtime and dependency
+constraints are unchanged from published 1.1.5.
+
 1.1.5 upgrades the old local 1.0.0 label:
 signed JSON/cache fixes, fail-closed helpers, time/pin/storage/network hardening,
 new import namespace, async adapter, typing and release tooling. See the
@@ -474,7 +477,7 @@ to PyPI will make the SDK source downloadable; it does not publish the backend.
 
 | Language | GitHub repository | ZIP from documentation | ZIP from GitHub Releases |
 | --- | --- | --- | --- |
-| Python | [kdpika-licensing-python](https://github.com/kdpika/kdpika-licensing-python) | [Python 1.1.5 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-1.1.5.zip) | [Python 1.1.5 ZIP](https://github.com/kdpika/kdpika-licensing-python/releases/download/v1.1.5/kdpika-python-sdk-1.1.5.zip) |
+| Python | [kdpika-licensing-python](https://github.com/kdpika/kdpika-licensing-python) | [Python 1.1.6 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-1.1.6.zip) | [Python 1.1.6 ZIP](https://github.com/kdpika/kdpika-licensing-python/releases/download/v1.1.6/kdpika-python-sdk-1.1.6.zip) |
 | Rust | [kdpika-licensing-rust](https://github.com/kdpika/kdpika-licensing-rust) | [Rust 0.1.0 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-rust-sdk-0.1.0.zip) | [Rust 0.1.0 ZIP](https://github.com/kdpika/kdpika-licensing-rust/releases/download/v0.1.0/kdpika-rust-sdk-0.1.0.zip) |
 | PHP | [kdpika-licensing-php](https://github.com/kdpika/kdpika-licensing-php) | [PHP 1.0.1 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-php-sdk-1.0.1.zip) | [PHP 1.0.1 ZIP](https://github.com/kdpika/kdpika-licensing-php/releases/download/v1.0.1/kdpika-php-sdk-1.0.1.zip) |
 

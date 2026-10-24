@@ -4,6 +4,17 @@ Notable changes follow Keep a Changelog categories. API v1 and SDK package
 versions are independent. Registry availability is recorded on PyPI; a source
 changelog entry is not proof of publication.
 
+## [1.1.6] — 2026-10-24
+
+### Changed
+
+- Put documentation, GitHub and versioned source ZIP links at the top of the
+  README, with explicit ZIP installation steps for Windows, macOS and Linux.
+- Correct source/issues and release configuration after the Python repository
+  rename. Add a release-specific artifact comparison against published 1.1.5 so
+  existing successful runtime tests can be reused for this documentation release.
+- No SDK runtime behavior, dependency constraints or license changes.
+
 ## [1.1.5] — 2026-10-20
 
 ### Changed
