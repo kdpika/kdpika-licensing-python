@@ -1,14 +1,37 @@
 # KDPika Licensing Python SDK
 
-Integrate software activation, signed license checks and feature limits into
-desktop apps, services and command-line tools using the existing KDPika API v1.
+Official Python client for license activation, signed validation, controlled
+offline access, feature checks and deactivation. **Python 3.11–3.14**, SDK **1.1.5**,
+MIT licensed.
 
-**Version 1.1.5.** Distribution: `kdpika-licensing`; import: `kdpika_licensing`.
-The SDK is MIT-licensed. Source repository: [kdpika/kdpika-licensing-python](https://github.com/kdpika/kdpika-licensing-python)
-(SDK source only; platform/backend source is not included).
-Check [PyPI release history](https://pypi.org/project/kdpika-licensing/#history)
-for published versions and [GitHub Actions](https://github.com/kdpika/kdpika-licensing-python/actions)
-for actual platform verification results. Source version alone is not proof of publication.
+[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python) · [Download SDK ZIP](https://github.com/kdpika/kdpika-licensing-python/releases/download/v1.1.5/kdpika-python-sdk-1.1.5.zip) · [PyPI package](https://pypi.org/project/kdpika-licensing/)
+
+## Install from the source ZIP
+
+Download [kdpika-python-sdk-1.1.5.zip from KDPika](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-1.1.5.zip)
+or the identical versioned asset from GitHub Releases. Verify its SHA-256 against
+the [download table](https://licensing.kdpika.com/docs/v1/sdks/overview#download-and-verify),
+then extract the `kdpika-python-sdk` directory beside your application.
+From that parent directory, create and activate a private virtual environment:
+
+~~~bash
+python -m venv .venv
+~~~
+
+On macOS/Linux, run `source .venv/bin/activate`. In Windows PowerShell, run
+`.\.venv\Scripts\Activate.ps1`. Then install the extracted SDK and its dependencies:
+
+~~~bash
+python -m pip install ./kdpika-python-sdk
+python -m pip check
+~~~
+
+Import `kdpika_licensing` in your application. The distribution name remains
+`kdpika-licensing`. The named SDK ZIP has the checksum and directory layout above;
+GitHub's automatic **Source code (zip)** is a different repository snapshot.
+This SDK does not include the proprietary platform/backend source.
+
+Prefer pip without a source download? See [Installation](#installation) below.
 
 [Platform API documentation](https://licensing.kdpika.com/docs) ·
 [Configuration](#configuration-reference) · [Errors](#error-codes-and-recovery) ·
