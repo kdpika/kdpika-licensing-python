@@ -4,10 +4,10 @@ Integrate software activation, signed license checks and feature limits into
 desktop apps, services and command-line tools using the existing KDPika API v1.
 
 **Version 1.1.5.** Distribution: `kdpika-licensing`; import: `kdpika_licensing`.
-The SDK is MIT-licensed. Source repository: [kdpika/kdpika-licensing](https://github.com/kdpika/kdpika-licensing)
+The SDK is MIT-licensed. Source repository: [kdpika/kdpika-licensing-python](https://github.com/kdpika/kdpika-licensing-python)
 (SDK source only; platform/backend source is not included).
 Check [PyPI release history](https://pypi.org/project/kdpika-licensing/#history)
-for published versions and [GitHub Actions](https://github.com/kdpika/kdpika-licensing/actions)
+for published versions and [GitHub Actions](https://github.com/kdpika/kdpika-licensing-python/actions)
 for actual platform verification results. Source version alone is not proof of publication.
 
 [Platform API documentation](https://licensing.kdpika.com/docs) ·
@@ -426,7 +426,7 @@ Contribute with synthetic Sandbox data only. Install `.[dev,docs,test]`, run
 Ruff, strict mypy, pytest/coverage, tox and `mkdocs build --strict` before
 proposing a change. Keep API v1/state/signing compatibility and add a regression
 test. Included CONTRIBUTING.md and CODE_OF_CONDUCT.md explain the process.
-Use the [repository and issue tracker](https://github.com/kdpika/kdpika-licensing/issues)
+Use the [repository and issue tracker](https://github.com/kdpika/kdpika-licensing-python/issues)
 for non-sensitive SDK bugs and contributions. Security reports belong privately
 at hi@kdpika.com, never in public issues.
 
@@ -446,3 +446,16 @@ The separately hosted KDPika SaaS platform, backend source, customer data and
 service access are not part of this SDK distribution. MIT licensing of the SDK
 does not grant free platform access or rights to KDPika trademarks. Publishing
 to PyPI will make the SDK source downloadable; it does not publish the backend.
+
+## SDK repositories and ZIP downloads
+
+| Language | GitHub repository | ZIP from documentation | ZIP from GitHub Releases |
+| --- | --- | --- | --- |
+| Python | [kdpika-licensing-python](https://github.com/kdpika/kdpika-licensing-python) | [Python 1.1.5 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-1.1.5.zip) | [Python 1.1.5 ZIP](https://github.com/kdpika/kdpika-licensing-python/releases/download/v1.1.5/kdpika-python-sdk-1.1.5.zip) |
+| Rust | [kdpika-licensing-rust](https://github.com/kdpika/kdpika-licensing-rust) | [Rust 0.1.0 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-rust-sdk-0.1.0.zip) | [Rust 0.1.0 ZIP](https://github.com/kdpika/kdpika-licensing-rust/releases/download/v0.1.0/kdpika-rust-sdk-0.1.0.zip) |
+| PHP | [kdpika-licensing-php](https://github.com/kdpika/kdpika-licensing-php) | [PHP 1.0.1 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-php-sdk-1.0.1.zip) | [PHP 1.0.1 ZIP](https://github.com/kdpika/kdpika-licensing-php/releases/download/v1.0.1/kdpika-php-sdk-1.0.1.zip) |
+
+Each versioned GitHub ZIP asset is byte-identical to the matching documentation
+download. GitHub's automatic “Source code (zip)” is a repository snapshot with a
+different folder name and may include newer README/CI metadata; use the named
+SDK asset when following the documentation's extraction paths and checksum.
