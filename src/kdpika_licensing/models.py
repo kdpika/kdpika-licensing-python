@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ._json import loads
+from ._floating import lease_valid
+from ._credits import credit_policy
 from ._verification import times
 from .errors import safe_request_id
 
@@ -51,6 +53,7 @@ class LicenseResult:
     storage_security: str = "unknown"
     _clock: Callable[[], datetime] = field(default=lambda: datetime.now(UTC), repr=False, compare=False)
     _snapshot: dict[str, Any] = field(default_factory=dict, init=False, repr=False, compare=False)
+    _seat_guard: Callable[[dict[str, Any]], bool] | None = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "payload", deepcopy(self.payload))
@@ -83,10 +86,17 @@ class LicenseResult:
     def _allowed(self) -> bool:
         if not self.valid or not self.signature_valid or self.status != "active":
             return False
+        if not credit_policy(self._snapshot) or (self._snapshot["metered"] and (self.source != "online" or self._snapshot["credit_balance"] == 0)):
+            return False
         try:
             server, next_check, grace, expiry = times(self._snapshot)
             now = self._clock()
             if now.tzinfo is None:
+                return False
+            if self._snapshot.get("floating") is not None:
+                if self._seat_guard is None or not self._seat_guard(self._snapshot):
+                    return False
+            elif not lease_valid(self._snapshot, None, now):
                 return False
             return not (
                 now.timestamp() + 300 < server.timestamp()

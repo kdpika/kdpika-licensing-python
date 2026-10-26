@@ -17,6 +17,7 @@ from kdpika_licensing import (
     SignatureVerificationError,
     StorageError,
 )
+from kdpika_licensing._fingerprint import hash_components
 from kdpika_licensing._json import canonical, loads
 from kdpika_licensing.models import HttpResponse
 
@@ -58,12 +59,19 @@ class MockTransport:
             "product_id": "app_synthetic",
             "environment": "sandbox",
             "status": "active",
-            "device": {"installation_hash": hashlib.sha256(device.encode()).hexdigest()},
+            "device": {"installation_hash": hashlib.sha256(device.encode()).hexdigest(),
+                       "fingerprint": hash_components("app_synthetic", {"baseboard": "fixture-board", "cpu": "fixture-cpu"})
+                       | {"policy": {"mode": "fuzzy", "min_matches": 2}}},
             "expires_at": (now + timedelta(days=30)).isoformat(),
             "server_time": now.isoformat(),
             "next_validation_at": (now + timedelta(hours=1)).isoformat(),
             "offline_grace_until": (now + timedelta(days=2)).isoformat(),
             "features": {"export": True, "seats": 3, "string_false": "false"},
+            "floating": None,
+            "metered": False,
+            "credit_balance": 0,
+            "total_allocated": 0,
+            "credit_transaction": None,
         }
         payload.update(self.changes)
         if self.missing:

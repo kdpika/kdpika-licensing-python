@@ -46,11 +46,39 @@ class ConfigurationError(LicenseSdkError):
     safe_message = "Check the application ID, environment, HTTPS URL and SDK configuration."
 
 
+class AllSeatsInUseError(LicenseSdkError):
+    """An explicit checkout could not reserve a shared seat."""
+
+    code = "ALL_SEATS_IN_USE"
+    safe_message = "All shared seats are in use. Try again when someone closes the app."
+
+
 class SignatureVerificationError(LicenseSdkError):
     """The response could not be authenticated with the trusted key."""
 
     code = "SIGNATURE_INVALID"
     safe_message = "The license response could not be authenticated. Reconnect or contact support."
+
+
+class CreditOperationError(LicenseSdkError):
+    """Safe credit refusal; no untrusted server message or request body is retained."""
+    code = "CREDIT_OPERATION_FAILED"
+    safe_message = "The credit operation could not be completed. Check the license or contact its publisher."
+
+    def __init__(self, code: str = "CREDIT_OPERATION_FAILED", *, request_id: str | None = None) -> None:
+        super().__init__(request_id=request_id)
+        if code in {"NOT_ACTIVATED", "NOT_METERED_LICENSE", "IDEMPOTENCY_CONFLICT", "INVALID_CREDIT_AMOUNT", "RATE_LIMITED", "LICENSE_EXPIRED", "LICENSE_REVOKED", "LICENSE_SUSPENDED", "SESSION_NOT_FOUND", "SESSION_EXPIRED", "FINGERPRINT_MISMATCH", "HARDWARE_UNAVAILABLE"}:
+            self.code = code
+
+
+class InsufficientCreditsError(CreditOperationError):
+    """Verified refusal. balance is the signed current balance, not a payment amount."""
+    code = "INSUFFICIENT_CREDITS"
+    safe_message = "There are not enough credits. Ask the software publisher to add more."
+
+    def __init__(self, balance: int, *, request_id: str | None = None) -> None:
+        super().__init__(request_id=request_id)
+        self.balance = balance
 
 
 class StorageError(LicenseSdkError):
@@ -73,4 +101,6 @@ __all__ = [
     "SignatureVerificationError",
     "StorageError",
     "NetworkError",
+    "CreditOperationError",
+    "InsufficientCreditsError",
 ]

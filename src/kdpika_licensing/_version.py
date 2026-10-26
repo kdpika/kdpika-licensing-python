@@ -1,3 +1,3 @@
 """Single source of the SDK package version."""
 
-__version__ = "1.1.6"
+__version__ = "2.0.0"

@@ -1,34 +1,10 @@
 # Owner release procedure
 
 The owner selected a public SDK-only repository at
-https://github.com/kdpika/kdpika-licensing-python and authorized the SDK publication
+https://github.com/kdpika/kdpika-licensing and authorized the SDK publication
 on 2026-10-20. Complete all verification gates before uploading. Check PyPI
 for actual registry availability; this procedure is not evidence of an upload.
 Future releases still require an explicit reviewed version and approval.
-
-## Documentation-only 1.1.6 release
-
-The owner explicitly approved Python 1.1.6 on 2026-10-24. This release updates
-README/download instructions and repository metadata after the GitHub rename.
-Runtime source and dependency constraints are unchanged from published 1.1.5.
-
-For this exact version only, release-config.json selects a limited verification
-job instead of repeating the successful OS/Python test matrix. The job checks
-the recorded successful CI run, rejects changes outside its documentation and
-release-metadata allowlist, builds the distributions, runs twine check, and
-compares every installed runtime file with the published 1.1.5 wheel (apart from
-the version constant). It also checks dependency metadata, license bytes and an
-installed-wheel smoke test. A mismatch blocks publishing. Future versions use
-the normal full CI path unless a new limited path is explicitly reviewed.
-
-For the documentation-only commit marked [skip ci], dispatch release.yml using
-the exact v1.1.6 tag after pushing it. This avoids repeating branch CI while
-still executing all release-specific gates and protected publishing approval.
-
-The protected pypi environment and OIDC publisher remain required. After the
-repository rename, the PyPI publisher must name kdpika-licensing-python, owner
-kdpika, workflow release.yml, environment pypi. Never add a long-lived token to
-Git or workflow files as a shortcut.
 
 ## 1. Resolve owner decisions
 
@@ -36,15 +12,14 @@ Git or workflow files as a shortcut.
   with copyright (c) 2026 KHALED AL HARAZI. It does not license the separately
   hosted SaaS platform/backend or grant free service access.
 - Package/import/support identity and MIT terms are prepared in release-config.json.
-  version_approved records the owner's publication authorization; the exact
-  documentation-only approval is version-scoped above.
+  version_approved records the owner's publication authorization for 1.1.5.
   It does not bypass required CI or protected environment review. Reset the
   approval when preparing a different version until that release is authorized.
 - The approved_license_sha256 records the actual MIT LICENSE bytes. If those
   bytes change, review the change and update the approved hash using:
   `python -c "import hashlib,pathlib;print(hashlib.sha256(pathlib.Path('LICENSE').read_bytes()).hexdigest())"`.
   The gate explicitly refuses the old information-only notice.
-- The confirmed public SDK-only repository is **kdpika/kdpika-licensing-python**.
+- The confirmed public SDK-only repository is **kdpika/kdpika-licensing**.
   release-config.json and source/issues metadata use this actual identity;
   CODEOWNERS names @kdpika. Platform/backend source is not included.
 - No registry/CI success badge is added until the corresponding release/check

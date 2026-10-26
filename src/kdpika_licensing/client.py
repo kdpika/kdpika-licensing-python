@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import atexit
 import platform
+import threading
+import weakref
 import time
 import warnings
 from collections.abc import Callable
@@ -11,10 +14,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from ._fingerprint import HardwareUnavailable, collect_fingerprint, matches_binding
+from ._floating import FloatingState, lease_valid
+from ._credits import CreditConsumption, consumption, credit_policy, request_values
 from ._storage import CredentialStore, LocalStateStore, default_storage_root, storage_namespace
 from ._transport import HttpTransport, Transport, safe_url
 from ._verification import times, timestamp, trusted_key, verify
 from .errors import (
+    AllSeatsInUseError,
+    CreditOperationError,
+    InsufficientCreditsError,
     ConfigurationError,
     NetworkError,
     SignatureVerificationError,
@@ -24,6 +33,17 @@ from .errors import (
 from .models import HttpResponse, LicenseResult
 
 _MESSAGES = {
+    "INSUFFICIENT_CREDITS": InsufficientCreditsError.safe_message,
+    "METERED_ONLINE_REQUIRED": "Connect to the internet to check or use credits.",
+    "NOT_METERED_LICENSE": "This license does not use credits.",
+    "IDEMPOTENCY_CONFLICT": "This request key was already used for a different credit operation.",
+    "INVALID_CREDIT_AMOUNT": "Use a positive whole number of credits.",
+    "ALL_SEATS_IN_USE": AllSeatsInUseError.safe_message,
+    "SESSION_REQUIRED": "Reserve a shared seat before using this app.",
+    "SESSION_NOT_FOUND": "Your shared seat needs to be reserved again.",
+    "SESSION_EXPIRED": "Your shared seat expired. Connect to reserve a seat again.",
+    "NOT_FLOATING_LICENSE": "This license does not use shared seats.",
+    "INVALID_FLOATING_POLICY": "The shared-seat settings are unavailable. Contact the publisher.",
     "INVALID_LICENSE": "Check your license key, application and customer email.",
     "NOT_ACTIVATED": "Enter your license key to activate this installation.",
     "DEVICE_LIMIT_REACHED": "Release an old installation or contact the software publisher.",
@@ -41,6 +61,9 @@ _MESSAGES = {
     "LICENSE_NOT_ACTIVE": "This license is not active. Contact the software publisher.",
     "INVALID_TOKEN": "Activate this installation again using your license key.",
     "DEVICE_MISMATCH": "This activation belongs to another installation.",
+    "FINGERPRINT_MISMATCH": "This activation belongs to a different device. Contact the software publisher.",
+    "INVALID_FINGERPRINT": "The device information could not be checked. Update the app or contact its publisher.",
+    "HARDWARE_UNAVAILABLE": "This device's information is unavailable. Check app permissions or contact its publisher.",
     "RATE_LIMITED": "Please wait before trying this license operation again.",
     "INVALID_RESPONSE": "The license response could not be used. Reconnect or contact support.",
     "SIGNATURE_INVALID": SignatureVerificationError.safe_message,
@@ -136,6 +159,7 @@ class LicenseClient:
         self.base_url = base_url.rstrip("/")
         self.application_name = application_name
         self.application_version = application_version
+        self._fingerprint: dict[str, Any] = {}
         try:
             self._pinned_key = trusted_key(verification_key) if verification_key is not None else None
         except SignatureVerificationError:
@@ -149,10 +173,21 @@ class LicenseClient:
         namespace = storage_namespace(self.base_url, self.product, self.environment)
         root = Path(storage_dir) if storage_dir is not None else default_storage_root(application_name)
         self._local = LocalStateStore(root, namespace)
+        self._floating = FloatingState(self._local)
+        self.last_floating_error: str | None = None
         self.installation_id = self._local.installation_id()
         # Preserve the pre-rename service ID and namespace to avoid orphaning seats.
         service = "com.studiosoline.license-sdk." + hashlib.sha256(namespace.encode("ascii")).hexdigest()[:20]
         self._credentials = CredentialStore(self._local, service, self.installation_id, prefer_keyring)
+        reference=weakref.ref(self)
+        def release() -> None:
+            client=reference()
+            if client is not None:
+                try:
+                    client.close()
+                except Exception:
+                    pass  # Shutdown is best effort; the server lease still expires.
+        atexit.register(release)
 
     @property
     def local(self) -> LocalStateStore:
@@ -210,7 +245,9 @@ class LicenseClient:
             See the tested examples/basic.py and examples/session.py scripts.
             Require result.valid and result.signature_valid before protected work.
         """
-        return self._run(lambda: self._activate(license_key, email))
+        result=self._run(lambda: self._activate(license_key, email))
+        self._start_heartbeat(result)
+        return result
 
     def check(self, force_online: bool = False) -> LicenseResult:
         """Check current access from verified cache or the service.
@@ -222,7 +259,9 @@ class LicenseClient:
         Returns:
             Current decision. An authoritative HTTP refusal never falls back to cache.
         """
-        return self._run(lambda: self._check(force_online))
+        result=self._run(lambda: self._check(force_online))
+        self._start_heartbeat(result)
+        return result
 
     def validate(self) -> LicenseResult:
         """Request online validation, equivalent to check(force_online=True).
@@ -241,7 +280,108 @@ class LicenseClient:
             verified license signature and cannot enable features. Failure keeps
             recovery state where safe; do not blindly retry an uncertain outcome.
         """
-        return self._run(self._deactivate)
+        self._floating.stop()
+        result=self._run(self._deactivate)
+        if result.valid:
+            self._floating.clear()
+        return result
+
+    def checkout(self) -> LicenseResult:
+        """Reserve one shared seat, or raise AllSeatsInUseError. Repeated calls reuse it."""
+        result=self._run(lambda: self._seat_request("checkout"))
+        if result.error_code=="ALL_SEATS_IN_USE":
+            raise AllSeatsInUseError(request_id=result.request_id)
+        self._start_heartbeat(result)
+        return result
+
+    def heartbeat(self) -> LicenseResult:
+        """Renew a held seat; re-checkout once when its session is missing/expired."""
+        return self._run(lambda: self._seat_request("heartbeat"))
+
+    def checkin(self) -> LicenseResult:
+        """Stop using the local grant immediately; ask the server to free its seat."""
+        self._floating.stop()
+        return self._run(lambda: self._seat_request("checkin"))
+
+    def close(self) -> None:
+        if self._floating.token():
+            self.checkin()
+        self._floating.stop()
+
+    def __enter__(self) -> LicenseClient:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.close()
+
+    def _start_heartbeat(self, result: LicenseResult) -> None:
+        policy=result.payload.get("floating")
+        if result.valid and isinstance(policy,dict) and self._floating.token():
+            self._floating.interval=int(policy["heartbeat_interval_seconds"])
+            self._floating.start(self)
+
+    def _background_heartbeat(self, stop: threading.Event) -> bool:
+        def beat() -> LicenseResult:
+            return self._error("SESSION_NOT_FOUND","local") if stop.is_set() else self._seat_request("heartbeat")
+        result=self._run(beat)
+        if stop.is_set():
+            return False
+        self.last_floating_error=result.error_code
+        return result.valid or result.error_code=="NETWORK_ERROR"
+
+    def _seat_request(self, action: str) -> LicenseResult:
+        token=self._credentials.load()
+        if not token:
+            return self._error("NOT_ACTIVATED","local")
+        session=self._floating.token()
+        if action=="checkin":
+            self._floating.clear()
+            self._local.clear_state()
+        if action!="checkout" and not session:
+            return self._seat_request("checkout") if action=="heartbeat" else self._error("SESSION_NOT_FOUND","local")
+        try:
+            self._fingerprint=collect_fingerprint(self.product)
+        except HardwareUnavailable:
+            return self._error("HARDWARE_UNAVAILABLE","local")
+        body={"fingerprint":self._fingerprint}
+        if session:
+            body["session_token"]=session
+        try:
+            response=self._transport.request("POST","/api/v1/licenses/"+action,body,{"Authorization":"Bearer "+token,"X-Installation-ID":self.installation_id})
+        except NetworkError:
+            return self._error("NETWORK_ERROR","local")
+        if not response.ok:
+            result=self._response_error(response)
+            self._floating.clear()
+            self._local.clear_state()
+            if action=="heartbeat" and result.error_code=="SESSION_NOT_FOUND":
+                return self._seat_request("checkout")
+            return result
+        if action=="checkin":
+            if response.body.get("checked_in") is not True:
+                return self._error("INVALID_RESPONSE","online",response)
+            return LicenseResult(True,"online",message="Shared seat released.")
+        signed=response.body.get("license")
+        if not isinstance(signed,dict):
+            self._floating.clear()
+            self._local.clear_state()
+            return self._error("INVALID_RESPONSE","online",response)
+        if action=="checkout":
+            session=response.body.get("session_token")
+            if not isinstance(session,str) or len(session)!=47 or not session.startswith("flt_"):
+                self._floating.clear()
+                self._local.clear_state()
+                return self._error("INVALID_RESPONSE","online",response)
+            self._floating.save(session)
+        result=self._authenticate(signed,"online",response)
+        if result.valid or result.error_code == "INSUFFICIENT_CREDITS":
+            self._save_signed_state(signed)
+            self._floating.interval=int(result.payload["floating"]["heartbeat_interval_seconds"])
+            self.last_floating_error=None
+        else:
+            self._floating.clear()
+            self._local.clear_state()
+        return result
 
     def feature(self, name: str, default: bool = False) -> bool:
         """Re-check access and evaluate a boolean/numeric entitlement.
@@ -278,8 +418,64 @@ class LicenseClient:
             Prefer deactivate() first. Do not delete identity to bypass seat limits.
         """
         with self._local.lock():
+            self._floating.stop()
+            self._floating.clear()
             self._local.clear_state()
             self._credentials.clear()
+
+    def get_balance(self) -> int:
+        """Fetch a signed current balance ONLINE; never use an offline balance."""
+        with self._local.lock():
+            result = self._check(True)
+            if not result.signature_valid or (not result.valid and result.error_code != "INSUFFICIENT_CREDITS"):
+                raise CreditOperationError(result.error_code or "CREDIT_OPERATION_FAILED", request_id=result.request_id)
+            if not result.payload.get("metered"):
+                raise CreditOperationError("NOT_METERED_LICENSE")
+            return int(result.payload["credit_balance"])
+
+    def consume(self, amount: int, idempotency_key: str | None = None, reason: str | None = None) -> CreditConsumption:
+        """Charge one online operation. Persist/reuse its request key on uncertain outcomes.
+
+        No automatic retries. A replay returns the original receipt; get_balance()
+        returns the current balance. Perform work only AFTER a successful receipt.
+        """
+        request_values(amount, idempotency_key, reason)
+        with self._local.lock():
+            token = self._credentials.load()
+            if not token:
+                raise CreditOperationError("NOT_ACTIVATED")
+            try:
+                self._fingerprint = collect_fingerprint(self.product)
+            except HardwareUnavailable:
+                raise CreditOperationError("HARDWARE_UNAVAILABLE") from None
+            response = self._transport.request("POST", "/api/v1/licenses/consume",
+                {"amount": amount, "idempotency_key": idempotency_key, "reason": reason,
+                 "fingerprint": self._fingerprint, "session_token": self._floating.token()},
+                {"Authorization": "Bearer " + token, "X-Installation-ID": self.installation_id})
+            if not response.ok and response.body.get("error", {}).get("code") != "INSUFFICIENT_CREDITS":
+                self._local.clear_state()
+                raise CreditOperationError(self._response_error(response).error_code or "CREDIT_OPERATION_FAILED", request_id=self._request_id(response))
+            signed = response.body.get("license")
+            if not isinstance(signed, dict):
+                raise SignatureVerificationError()
+            result = self._authenticate(signed, "online", response)
+            if not result.signature_valid:
+                raise SignatureVerificationError(request_id=result.request_id)
+            if not result.valid and result.error_code != "INSUFFICIENT_CREDITS":
+                raise CreditOperationError(result.error_code or "CREDIT_OPERATION_FAILED", request_id=result.request_id)
+            if not result.payload.get("metered"):
+                raise CreditOperationError("NOT_METERED_LICENSE")
+            if not response.ok:
+                if response.status != 402 or result.payload["credit_balance"] >= amount or response.body.get("balance") != result.payload["credit_balance"]:
+                    raise SignatureVerificationError()
+                self._save_signed_state(signed)
+                raise InsufficientCreditsError(int(result.payload["credit_balance"]), request_id=result.request_id)
+            try:
+                receipt = consumption(result.payload, response.body, amount, idempotency_key)
+            except ValueError:
+                raise SignatureVerificationError() from None
+            self._save_signed_state(signed)
+            return receipt
 
     def _run(self, operation: Callable[[], LicenseResult]) -> LicenseResult:
         try:
@@ -291,12 +487,17 @@ class LicenseClient:
     def _activate(self, license_key: str, email: str | None) -> LicenseResult:
         if not isinstance(license_key, str) or not license_key.strip():
             return self._error("INVALID_LICENSE", "local")
+        try:
+            self._fingerprint = collect_fingerprint(self.product)
+        except HardwareUnavailable:
+            return self._error("HARDWARE_UNAVAILABLE", "local")
         body: dict[str, Any] = {
             "license_key": license_key.strip(),
             "device_id": self.installation_id,
             "device_name": platform.node() or self.application_name,
             "platform": platform.system().lower(),
             "app_version": self.application_version,
+            "fingerprint": self._fingerprint,
         }
         if email:
             body["email"] = email.strip()
@@ -318,7 +519,7 @@ class LicenseClient:
         ):
             return self._error("INVALID_RESPONSE", "online", response)
         result = self._authenticate(signed, "online", response)
-        if not result.valid:
+        if not result.valid and result.error_code not in {"SESSION_REQUIRED", "INSUFFICIENT_CREDITS"}:
             self._revoke_untrusted_activation(token)
             return result
         try:
@@ -330,12 +531,16 @@ class LicenseClient:
             finally:
                 self._revoke_untrusted_activation(token)
             raise
-        return result
+        return self._seat_request("checkout") if result.error_code=="SESSION_REQUIRED" else result
 
     def _check(self, force_online: bool) -> LicenseResult:
         token = self._credentials.load()
         if not token:
             return self._error("NOT_ACTIVATED", "local")
+        try:
+            self._fingerprint = collect_fingerprint(self.product)
+        except HardwareUnavailable:
+            return self._error("HARDWARE_UNAVAILABLE", "local")
         state = self._state(recover=True)
         signed = state.get("signed_license")
         if not force_online and isinstance(signed, dict):
@@ -347,17 +552,32 @@ class LicenseClient:
             response = self._transport.request(
                 "POST",
                 "/api/v1/licenses/validate",
-                {},
+                {"fingerprint": self._fingerprint, "session_token": self._floating.token()},
                 {"Authorization": "Bearer " + token, "X-Installation-ID": self.installation_id},
             )
         except NetworkError:
             return self._offline_result()
         if not response.ok:
             result = self._response_error(response)
+            if result.error_code == "INSUFFICIENT_CREDITS" and response.status == 402:
+                signed = response.body.get("license")
+                if not isinstance(signed, dict):
+                    return self._error("SIGNATURE_INVALID", "online", response)
+                verified = self._authenticate(signed, "online", response)
+                if verified.error_code == "INSUFFICIENT_CREDITS" and verified.signature_valid:
+                    self._save_signed_state(signed)
+                    return verified
+                return self._error("SIGNATURE_INVALID", "online", response)
+            if result.error_code=="SESSION_NOT_FOUND":
+                self._floating.clear()
+                self._local.clear_state()
+                return self._seat_request("checkout")
             self._local.clear_state()
+            self._floating.clear()
             if result.error_code in {
                 "INVALID_TOKEN",
                 "DEVICE_MISMATCH",
+                "FINGERPRINT_MISMATCH",
                 "LICENSE_REVOKED",
                 "LICENSE_EXPIRED",
                 "LICENSE_CANCELLED",
@@ -367,12 +587,14 @@ class LicenseClient:
             return result
         signed = response.body.get("license")
         if not isinstance(signed, dict):
+            self._floating.clear()
             self._local.clear_state()
             return self._error("INVALID_RESPONSE", "online", response)
         result = self._authenticate(signed, "online", response)
         if result.valid:
             self._save_signed_state(signed)
         else:
+            self._floating.clear()
             self._local.clear_state()  # A rejected response cannot leave an old grant behind.
         return result
 
@@ -437,6 +659,8 @@ class LicenseClient:
             or device.get("installation_hash") != hashlib.sha256(self.installation_id.encode()).hexdigest()
         ):
             return self._error("SIGNATURE_INVALID", source, response)
+        if not matches_binding(device.get("fingerprint"), self._fingerprint):
+            return self._error("FINGERPRINT_MISMATCH", source, response, payload, True)
         try:
             server, _, grace, expiry = times(payload)
             now = self._now()
@@ -452,6 +676,22 @@ class LicenseClient:
             return self._error("LICENSE_EXPIRED", source, response, payload, True)
         if source in {"cache", "offline"} and now > grace:
             return self._error("OFFLINE_GRACE_EXPIRED", source, response, payload, True)
+        policy=payload.get("floating")
+        if isinstance(policy,dict):
+            interval=policy.get("heartbeat_interval_seconds")
+            if not isinstance(interval,int) or isinstance(interval,bool) or not 30<=interval<=600:
+                return self._error("INVALID_RESPONSE",source,response,payload,True)
+            if policy.get("session") is None:
+                return self._error("SESSION_REQUIRED",source,response,payload,True)
+        if not lease_valid(payload,self._floating.token(),now):
+            return self._error("SESSION_EXPIRED",source,response,payload,True)
+        if not credit_policy(payload):
+            return self._error("INVALID_RESPONSE", source, response, payload, True)
+        if payload["metered"]:
+            if source != "online":
+                return self._error("METERED_ONLINE_REQUIRED", source, response, payload, True)
+            if payload["credit_balance"] == 0:
+                return self._error("INSUFFICIENT_CREDITS", source, response, payload, True)
         return LicenseResult(
             True,
             source,
@@ -460,6 +700,7 @@ class LicenseClient:
             signature_valid=True,
             storage_security=self.storage_security,
             _clock=self._now,
+            _seat_guard=lambda snapshot: lease_valid(snapshot,self._floating.token(),self._now()),
         )
 
     def _verification_key(self, signed: dict[str, Any], *, online: bool) -> dict[str, Any]:

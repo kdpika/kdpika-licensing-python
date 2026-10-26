@@ -5,12 +5,7 @@
   "license_approved": true,
   "approved_license_sha256": "5ed079db8b7439bf3babdd7b1dc6e87e835699554fd0462709e3baa80226b6f9",
   "repository": "kdpika/kdpika-licensing-python",
-  "documentation_only": {
-    "version": "1.1.6",
-    "base_version": "1.1.5",
-    "verified_ci_run": 39495908982,
-    "verified_commit": "a12cecf231173a28f1f3caef6da2058a04596144"
-  },
   "support_email": "hi@kdpika.com",
-  "support_email_approved": true
+  "support_email_approved": true,
+  "version": "2.0.0"
 }

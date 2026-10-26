@@ -132,7 +132,7 @@ def test_workflow_action_pins_and_publish_isolation():
     release = (workflows / "release.yml").read_text(encoding="utf-8")
     assert release.count("id-token: write") == 2
     assert "environment: testpypi" in release and "environment: pypi" in release
-    assert "needs: [prepare, verify]" in release
+    assert "needs: [prepare, verify, verify_documentation]" in release
 
 
 def test_native_matrix_keeps_all_python_versions_and_native_macos_build():

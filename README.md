@@ -1,42 +1,27 @@
 # KDPika Licensing Python SDK
 
-Official Python client for license activation, signed validation, controlled
-offline access, feature checks and deactivation. **Python 3.11–3.14**, SDK **1.1.6**,
-MIT licensed.
+Official SDK **2.0.0** for the current KDPika API contract.
 
-[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python) · [Download SDK ZIP](https://github.com/kdpika/kdpika-licensing-python/releases/download/v1.1.6/kdpika-python-sdk-1.1.6.zip) · [PyPI package](https://pypi.org/project/kdpika-licensing/)
+[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [Download SDK ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-2.0.0.zip) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python)
 
-## Install from the source ZIP
+## Supported licensing capabilities
 
-Download [kdpika-python-sdk-1.1.6.zip from KDPika](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-1.1.6.zip)
-or the identical versioned asset from GitHub Releases. Verify its SHA-256 against
-the [download table](https://licensing.kdpika.com/docs/v1/sdks/overview#download-and-verify),
-then extract the `kdpika-python-sdk` directory beside your application.
-From that parent directory, create and activate a private virtual environment:
+| Capability | Behavior |
+|---|---|
+| Signed checks and offline access | Verify Ed25519 results; access never extends beyond signed expiry/offline policy. |
+| Device matching | Required product-salted hardware hashes and X-Installation-ID; verify the signed device binding. Raw serials are not sent. |
+| Floating licenses | Checkout, heartbeat and checkin with signed lease deadlines; handle ALL_SEATS_IN_USE. |
+| Usage credits | Online-only consume with a persisted idempotency key; query balance and handle INSUFFICIENT_CREDITS. |
+| Customer portal | Hosted self-service portal managed by the server, not an SDK payment or account feature. |
 
-~~~bash
-python -m venv .venv
-~~~
+Advanced matching, floating seats, credits and portal availability depend on your workspace plan. Browser/WASM hardware fingerprint fallback is unsupported. Test on your target OS and in Sandbox before distributing your app.
 
-On macOS/Linux, run `source .venv/bin/activate`. In Windows PowerShell, run
-`.\.venv\Scripts\Activate.ps1`. Then install the extracted SDK and its dependencies:
+## Install
 
-~~~bash
-python -m pip install ./kdpika-python-sdk
-python -m pip check
-~~~
+```sh
+python -m pip install "kdpika-licensing==2.0.0"
+```
 
-Import `kdpika_licensing` in your application. The distribution name remains
-`kdpika-licensing`. The named SDK ZIP has the checksum and directory layout above;
-GitHub's automatic **Source code (zip)** is a different repository snapshot.
-This SDK does not include the proprietary platform/backend source.
-
-Prefer pip without a source download? See [Installation](#installation) below.
-
-[Platform API documentation](https://licensing.kdpika.com/docs) ·
-[Configuration](#configuration-reference) · [Errors](#error-codes-and-recovery) ·
-[FAQ](#frequently-asked-questions) · [Changelog](#changelog-and-contributing) ·
-[License](#license)
 
 ## Features and limits
 
@@ -62,7 +47,7 @@ Python >=3.11,<3.15. Create a private virtualenv:
 python -m venv .venv
 # Activate the virtualenv using your shell, then:
 python -m pip install --upgrade "pip>=26.2.1,<27"
-python -m pip install "kdpika-licensing==1.1.6"
+python -m pip install "kdpika-licensing==2.0.0"
 ~~~
 
 Windows PowerShell activation: `.venv/Scripts/Activate.ps1`.
@@ -72,14 +57,14 @@ Optional extras and upgrades (published versions only):
 
 ~~~bash
 python -m pip install kdpika-licensing
-python -m pip install "kdpika-licensing[keyring]"
-python -m pip install "kdpika-licensing[qt]"
+python -m pip install "kdpika-licensing[secure-storage]"
+python -m pip install "kdpika-licensing[ui]"
 python -m pip install --upgrade kdpika-licensing
 ~~~
 
 For an unpublished checkout, use `python -m pip install .` instead.
 A pre-release must be requested explicitly by version or `--pre`. Extras:
-keyring, qt, test, dev, docs; legacy secure-storage/ui remain aliases.
+secure-storage, ui, test, dev and docs.
 Base runtime has only cryptography as a direct dependency (50.0.2+ below 51).
 Upstream no longer supplies Intel macOS or 32-bit Windows wheels; evaluate a
 supported platform/source build instead of downgrading to an affected version.
@@ -440,10 +425,7 @@ customer credentials in a public issue. No guaranteed response SLA is claimed.
 
 ## Changelog and contributing
 
-1.1.6 updates documentation and repository links only; the runtime and dependency
-constraints are unchanged from published 1.1.5.
-
-1.1.5 upgrades the old local 1.0.0 label:
+2.0.0 upgrades the old local 1.0.0 label:
 signed JSON/cache fixes, fail-closed helpers, time/pin/storage/network hardening,
 new import namespace, async adapter, typing and release tooling. See the
 included CHANGELOG.md for the detailed record and migration notes.
@@ -472,16 +454,3 @@ The separately hosted KDPika SaaS platform, backend source, customer data and
 service access are not part of this SDK distribution. MIT licensing of the SDK
 does not grant free platform access or rights to KDPika trademarks. Publishing
 to PyPI will make the SDK source downloadable; it does not publish the backend.
-
-## SDK repositories and ZIP downloads
-
-| Language | GitHub repository | ZIP from documentation | ZIP from GitHub Releases |
-| --- | --- | --- | --- |
-| Python | [kdpika-licensing-python](https://github.com/kdpika/kdpika-licensing-python) | [Python 1.1.6 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-1.1.6.zip) | [Python 1.1.6 ZIP](https://github.com/kdpika/kdpika-licensing-python/releases/download/v1.1.6/kdpika-python-sdk-1.1.6.zip) |
-| Rust | [kdpika-licensing-rust](https://github.com/kdpika/kdpika-licensing-rust) | [Rust 0.1.1 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-rust-sdk-0.1.1.zip) | [Rust 0.1.1 ZIP](https://github.com/kdpika/kdpika-licensing-rust/releases/download/v0.1.1/kdpika-rust-sdk-0.1.1.zip) |
-| PHP | [kdpika-licensing-php](https://github.com/kdpika/kdpika-licensing-php) | [PHP 1.0.1 ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-php-sdk-1.0.1.zip) | [PHP 1.0.1 ZIP](https://github.com/kdpika/kdpika-licensing-php/releases/download/v1.0.1/kdpika-php-sdk-1.0.1.zip) |
-
-Each versioned GitHub ZIP asset is byte-identical to the matching documentation
-download. GitHub's automatic “Source code (zip)” is a repository snapshot with a
-different folder name and may include newer README/CI metadata; use the named
-SDK asset when following the documentation's extraction paths and checksum.

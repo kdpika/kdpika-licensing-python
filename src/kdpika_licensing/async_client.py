@@ -7,6 +7,7 @@ from typing import Any
 
 from .client import LicenseClient
 from .models import LicenseResult
+from ._credits import CreditConsumption
 
 
 class AsyncLicenseClient:
@@ -76,6 +77,30 @@ class AsyncLicenseClient:
     async def deactivate(self) -> LicenseResult:
         """Release the seat; a successful acknowledgement grants no features."""
         return await asyncio.to_thread(self._client.deactivate)
+
+    async def get_balance(self) -> int:
+        return await asyncio.to_thread(self._client.get_balance)
+
+    async def consume(self, amount: int, idempotency_key: str | None = None, reason: str | None = None) -> CreditConsumption:
+        return await asyncio.to_thread(self._client.consume, amount, idempotency_key, reason)
+
+    async def checkout(self) -> LicenseResult:
+        return await asyncio.to_thread(self._client.checkout)
+
+    async def heartbeat(self) -> LicenseResult:
+        return await asyncio.to_thread(self._client.heartbeat)
+
+    async def checkin(self) -> LicenseResult:
+        return await asyncio.to_thread(self._client.checkin)
+
+    async def close(self) -> None:
+        await asyncio.to_thread(self._client.close)
+
+    async def __aenter__(self) -> AsyncLicenseClient:
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self.close()
 
     async def feature(self, name: str, default: bool = False) -> bool:
         """Re-check access and safely evaluate a flag.

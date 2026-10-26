@@ -1,8 +1,44 @@
+# Current release: 2.0.0
+
+- Required signed hardware binding, floating checkout/heartbeat/checkin and online idempotent usage credits.
+- Updated installation, source links and cross-language capability documentation.
+- Customer portal remains hosted; browser hardware fallback is unsupported.
+
 # Changelog
+
+## 2.0.0 — 2026-10-26
+
+- Require product-salted hardware hashes and verify signed device/installation binding.
+- Add floating checkout, heartbeat and checkin with signed lease expiry and seat exhaustion.
+- Add online-only credit balance/consume, idempotent receipts and insufficient-credit errors.
+- Breaking pre-launch server contract; older published clients are not compatible.
+- Registry availability is recorded separately; a changelog is not proof of publication. Ed25519 is unchanged.
 
 Notable changes follow Keep a Changelog categories. API v1 and SDK package
 versions are independent. Registry availability is recorded on PyPI; a source
 changelog entry is not proof of publication.
+
+## Usage credits included in the current release
+
+- Add online-only consume/get_balance and async equivalents, authenticated immutable
+  receipts, and typed InsufficientCreditsError. Repeated request keys replay without
+  another charge; no automatic retry on uncertain outcomes.
+- Require signed credit policy; zero balance denies features without deleting the
+  activation. Metered cache/offline access fails closed.
+
+## Floating seats included in the current release
+
+- Add shared-seat checkout/heartbeat/checkin, automatic renewal/recovery and safe
+  shutdown/context management to synchronous and async clients.
+- Enforce signed lease/token/expiry for cached/offline and retained feature results.
+- Export AllSeatsInUseError for explicit checkout; no dependencies or publication.
+
+## Unreleased — required hardware binding
+
+- Collect product-salted hardware hashes on Windows/macOS/Linux; no new dependencies.
+- Send fingerprints on activation/validation; enforce signed strict/flexible binding
+  for online, cached and offline access. Fail closed when usable hardware is unavailable.
+- Pre-launch breaking server contract, release availability is listed in the package registry to PyPI or source ZIP releases.
 
 ## [1.1.6] — 2026-10-24
 

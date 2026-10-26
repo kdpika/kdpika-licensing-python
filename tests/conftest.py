@@ -9,6 +9,16 @@ from test_security import session as session
 
 
 @pytest.fixture(autouse=True)
+def synthetic_hardware(monkeypatch, request):
+    if request.node.get_closest_marker("live"):
+        return
+    from kdpika_licensing import client
+    from kdpika_licensing._fingerprint import hash_components
+    monkeypatch.setattr(client, "collect_fingerprint", lambda product: hash_components(
+        product, {"baseboard": "fixture-board", "cpu": "fixture-cpu"}))
+
+
+@pytest.fixture(autouse=True)
 def no_live_network(monkeypatch, request):
     if request.node.get_closest_marker("live") and os.getenv("KDP_RUN_LIVE_SANDBOX") == "1":
         return
