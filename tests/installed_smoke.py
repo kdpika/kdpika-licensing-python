@@ -13,6 +13,11 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 import kdpika_licensing
 from kdpika_licensing import AsyncLicenseClient, LicenseClient, NetworkError
 from kdpika_licensing._json import canonical
+from kdpika_licensing._fingerprint import hash_components
+import kdpika_licensing.client as client_module
+
+# Synthetic hardware is confined to installed-package tests, never SDK runtime.
+client_module.collect_fingerprint = lambda product: hash_components(product, {"baseboard": "installed-fixture", "cpu": "installed-fixture-cpu"})
 from kdpika_licensing.models import HttpResponse
 
 
@@ -48,7 +53,8 @@ class Transport:
             "environment": "sandbox",
             "license_id": "lic_synthetic",
             "status": "active",
-            "device": {"installation_hash": hashlib.sha256(self.device.encode()).hexdigest()},
+            "device": {"installation_hash": hashlib.sha256(self.device.encode()).hexdigest(), "fingerprint": client_module.collect_fingerprint("app_synthetic") | {"policy": {"mode": "strict"}}},
+            "floating": None, "metered": False, "credit_balance": 0, "total_allocated": 0, "credit_transaction": None,
             "server_time": now.isoformat(),
             "expires_at": (now + timedelta(days=3)).isoformat(),
             "next_validation_at": (now + timedelta(hours=1)).isoformat(),
@@ -100,7 +106,7 @@ def main():
             and result.signature_valid
             and result.feature("export")
             and result.feature_value("limit") == 19.0
-        )
+        ), f"{result.error_code}: {result.message}"
         refreshed = client.validate()
         assert refreshed.valid and refreshed.signature_valid
         cached = client.check()

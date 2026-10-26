@@ -1,8 +1,8 @@
 # KDPika Licensing Python SDK
 
-Official SDK **2.0.0** for the current KDPika API contract.
+Official SDK **2.0.1** for the current KDPika API contract.
 
-[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [Download SDK ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-2.0.0.zip) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python)
+[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [Download SDK ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-2.0.1.zip) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python)
 
 ## Supported licensing capabilities
 
@@ -19,7 +19,7 @@ Advanced matching, floating seats, credits and portal availability depend on you
 ## Install
 
 ```sh
-python -m pip install "kdpika-licensing==2.0.0"
+python -m pip install "kdpika-licensing==2.0.1"
 ```
 
 
@@ -47,7 +47,7 @@ Python >=3.11,<3.15. Create a private virtualenv:
 python -m venv .venv
 # Activate the virtualenv using your shell, then:
 python -m pip install --upgrade "pip>=26.2.1,<27"
-python -m pip install "kdpika-licensing==2.0.0"
+python -m pip install "kdpika-licensing==2.0.1"
 ~~~
 
 Windows PowerShell activation: `.venv/Scripts/Activate.ps1`.
@@ -425,7 +425,7 @@ customer credentials in a public issue. No guaranteed response SLA is claimed.
 
 ## Changelog and contributing
 
-2.0.0 upgrades the old local 1.0.0 label:
+2.0.1 upgrades the old local 1.0.0 label:
 signed JSON/cache fixes, fail-closed helpers, time/pin/storage/network hardening,
 new import namespace, async adapter, typing and release tooling. See the
 included CHANGELOG.md for the detailed record and migration notes.
