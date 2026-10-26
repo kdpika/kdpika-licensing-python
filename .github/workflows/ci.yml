@@ -34,7 +34,7 @@ jobs:
       - run: python -m pip install --upgrade "pip>=26.2.1,<27"
       - run: python -m pip install ".[test]"
       - run: python -m pytest --cov --cov-report=xml --cov-report=term-missing
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.python }}
           path: coverage.xml
@@ -60,12 +60,12 @@ jobs:
       - run: python tools/verify_artifacts.py
       - run: python tools/audit_dependencies.py
       - run: python tools/audit_dependencies.py --tooling
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: python-distributions
           path: dist/*
           if-no-files-found: error
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-docs-and-evidence
           path: |
