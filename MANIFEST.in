@@ -10,3 +10,4 @@ recursive-include src *.py py.typed
 recursive-include tests *.py *.json
 global-exclude .DS_Store *.pyc
 prune tests/__pycache__
+recursive-include examples/python-projects *.py *.md *.txt *.command *.bat *.sh LICENSE

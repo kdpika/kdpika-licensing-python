@@ -1,4 +1,4 @@
-# Current release: 2.0.1
+# Current release: 2.0.2
 
 - Required signed hardware binding, floating checkout/heartbeat/checkin and online idempotent usage credits.
 - Updated installation, source links and cross-language capability documentation.
@@ -153,3 +153,9 @@ date, a published registry release or an invented earlier-version history.
 
 Future entries must identify the exact version, verified changes, compatibility
 impact and tests. API v1 and SDK package versions are independent.
+
+## 2.0.2 — 2026-10-27
+
+- Documentation only: first-time setup, isolated Python environments, install/update/repair/uninstall and explanations for Python 3.9 and old-SDK errors.
+- Add the optional desktop example with App ID and Test/Live controls and an isolated launcher.
+- SDK implementation and dependencies are unchanged from 2.0.1.
