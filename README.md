@@ -1,8 +1,31 @@
 # KDPika Licensing Python SDK
 
-Official SDK **2.0.2** for the current KDPika API contract. This documentation-only update has the same licensing code as 2.0.1. The downloadable demo deliberately pins its tested SDK 2.0.1.
+## Desktop / Web plan controls — 2.1.0
 
-[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [Download SDK ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-2.0.2.zip) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python)
+This source adds Business-only per-software-plan app access: `desktop`, `web`, or `both`. Starter and Pro automatically allow both under the same App ID and cannot create app-specific restrictions. It applies equally to subscriptions, one-time purchases and lifetime access. Devices/seats/credits belong to the same license; choosing both does not double its limits.
+
+Configure the host application, not a customer-editable field:
+
+```
+LicenseClient(product="YOUR_APP_ID", application_type="web", storage_dir=Path("/private/web-license"))
+```
+
+Default: desktop. Configure the other app with the same App ID and key, its own context and private state folder. SDK storage namespaces include the context. All activation/validation/seat/credit requests send `X-Application-Type`, and the SDK checks signed `application_access` plus `application_type` on network and cached results. A scope-restricted license cannot activate without declaring a context. Errors: APPLICATION_NOT_ALLOWED, APPLICATION_TYPE_REQUIRED, APPLICATION_TYPE_MISMATCH, INVALID_APPLICATION_TYPE. Releasing a machine/seat remains possible after a restriction change.
+
+Context is a declaration by trusted application code, not browser/hardware attestation. A user who controls executable code can modify it; valuable online operations need server-side authorization too. Offline clients learn changed policies only on reconnect and must obey the old signed deadline until then. Browser/WASM hardware fallback remains unsupported.
+
+[Download the source ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-2.1.0.zip) · [Desktop / Web setup and migration](https://licensing.kdpika.com/docs/v1/licensing/application-access)
+
+## Install this release
+
+```sh
+python -m pip install "kdpika-licensing==2.1.0"
+```
+
+
+Official SDK **2.1.0** for signed licensing, hardware binding, floating seats, metered credits and Desktop / Web access controls.
+
+[Documentation](https://licensing.kdpika.com/docs/v1/sdks/python) · [Download SDK ZIP](https://licensing.kdpika.com/docs/downloads/kdpika-python-sdk-2.1.0.zip) · [GitHub source](https://github.com/kdpika/kdpika-licensing-python)
 
 ## Supported licensing capabilities
 
@@ -71,7 +94,7 @@ Create a normal project folder and open your terminal in it. On Windows, File Ex
 
 ```powershell
 py -3.14 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install "kdpika-licensing==2.0.1"
+.\.venv\Scripts\python.exe -m pip install "kdpika-licensing==2.1.0"
 .\.venv\Scripts\python.exe -c "import sys,importlib.metadata as m; print('Python:',sys.version.split()[0]); print('SDK:',m.version('kdpika-licensing')); print('Executable:',sys.executable)"
 ```
 
@@ -79,7 +102,7 @@ py -3.14 -m venv .venv
 
 ```bash
 python3.14 -m venv .venv
-./.venv/bin/python -m pip install "kdpika-licensing==2.0.1"
+./.venv/bin/python -m pip install "kdpika-licensing==2.1.0"
 ./.venv/bin/python -c "import sys,importlib.metadata as m; print('Python:',sys.version.split()[0]); print('SDK:',m.version('kdpika-licensing')); print('Executable:',sys.executable)"
 ```
 
@@ -87,11 +110,11 @@ python3.14 -m venv .venv
 
 ```bash
 python3 -m venv .venv
-./.venv/bin/python -m pip install "kdpika-licensing==2.0.1"
+./.venv/bin/python -m pip install "kdpika-licensing==2.1.0"
 ./.venv/bin/python -c "import sys,importlib.metadata as m; print('Python:',sys.version.split()[0]); print('SDK:',m.version('kdpika-licensing')); print('Executable:',sys.executable)"
 ```
 
-Expected: a supported Python, SDK **2.0.1**, and an executable inside this project's `.venv`. Run your app using that same executable: `./.venv/bin/python your_app.py` on macOS/Linux or `.\.venv\Scripts\python.exe your_app.py` in PowerShell. Your IDE must select that executable too. Installing in Python 3.14 does not update Python 3.9.
+Expected: a supported Python, SDK **2.1.0**, and an executable inside this project's `.venv`. Run your app using that same executable: `./.venv/bin/python your_app.py` on macOS/Linux or `.\.venv\Scripts\python.exe your_app.py` in PowerShell. Your IDE must select that executable too. Installing in Python 3.14 does not update Python 3.9.
 
 ## Update, reinstall or remove the SDK
 
@@ -99,9 +122,9 @@ Close the app first. Stay in the same project folder and use the **same environm
 
 | Task | macOS/Linux, own project | Windows PowerShell, own project |
 | --- | --- | --- |
-| Install the demo-tested version | `./.venv/bin/python -m pip install --upgrade "kdpika-licensing==2.0.1"` | `.\.venv\Scripts\python.exe -m pip install --upgrade "kdpika-licensing==2.0.1"` |
+| Install the demo-tested version | `./.venv/bin/python -m pip install --upgrade "kdpika-licensing==2.1.0"` | `.\.venv\Scripts\python.exe -m pip install --upgrade "kdpika-licensing==2.1.0"` |
 | Update to the latest published stable version | `./.venv/bin/python -m pip install --upgrade kdpika-licensing` | `.\.venv\Scripts\python.exe -m pip install --upgrade kdpika-licensing` |
-| Repair the same tested version | `./.venv/bin/python -m pip install --force-reinstall "kdpika-licensing==2.0.1"` | `.\.venv\Scripts\python.exe -m pip install --force-reinstall "kdpika-licensing==2.0.1"` |
+| Repair the same tested version | `./.venv/bin/python -m pip install --force-reinstall "kdpika-licensing==2.1.0"` | `.\.venv\Scripts\python.exe -m pip install --force-reinstall "kdpika-licensing==2.1.0"` |
 | View the installed package/version | `./.venv/bin/python -m pip show kdpika-licensing` | `.\.venv\Scripts\python.exe -m pip show kdpika-licensing` |
 | Remove the SDK from this environment | `./.venv/bin/python -m pip uninstall kdpika-licensing` | `.\.venv\Scripts\python.exe -m pip uninstall kdpika-licensing` |
 
@@ -109,7 +132,7 @@ For the **downloaded demo**, use `.demo-venv` instead of `.venv`. Or run `python
 
 Before permanently abandoning an activated computer, choose **Release this computer** and confirm it succeeds. Closing the app releases a floating seat; removing the SDK, deleting `.venv`/`.demo-venv`, or deleting local files **does not deactivate a server-side machine**. Do not delete the private `.kdpika-python-tutorial` folder to fix installation errors: that can lose the identity needed to release the old machine. Removing a package leaves dependencies and saved state; it does not cancel billing. If the computer is unavailable, use the authorized customer portal or publisher dashboard.
 
-Optional SDK extras for your own app: append `[secure-storage]` for an available OS keyring, or `[ui]` for the SDK's optional Qt UI, e.g. `./.venv/bin/python -m pip install "kdpika-licensing[secure-storage]==2.0.1"`. The supplied desktop demo uses Tkinter, so Qt is not needed. Flask belongs only to the web example. Native keyring availability and target-OS packaging need separate verification.
+Optional SDK extras for your own app: append `[secure-storage]` for an available OS keyring, or `[ui]` for the SDK's optional Qt UI, e.g. `./.venv/bin/python -m pip install "kdpika-licensing[secure-storage]==2.1.0"`. The supplied desktop demo uses Tkinter, so Qt is not needed. Flask belongs only to the web example. Native keyring availability and target-OS packaging need separate verification.
 
 ## Common setup problems, in plain words
 
@@ -485,7 +508,7 @@ customer credentials in a public issue. No guaranteed response SLA is claimed.
 
 ## Changelog and contributing
 
-2.0.1 upgrades the old local 1.0.0 label:
+2.1.0 upgrades the old local 1.0.0 label:
 signed JSON/cache fixes, fail-closed helpers, time/pin/storage/network hardening,
 new import namespace, async adapter, typing and release tooling. See the
 included CHANGELOG.md for the detailed record and migration notes.

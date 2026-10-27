@@ -7,11 +7,5 @@
   "repository": "kdpika/kdpika-licensing-python",
   "support_email": "hi@kdpika.com",
   "support_email_approved": true,
-  "version": "2.0.2",
-  "documentation_only": {
-    "version": "2.0.2",
-    "base_version": "2.0.1",
-    "verified_ci_run": 40356919084,
-    "verified_commit": "a5559f901aa2cd2e6b2977c3f8e74ab45818e4eb"
-  }
+  "version": "2.1.0"
 }

@@ -50,6 +50,8 @@ class Transport:
         now = datetime.now(UTC)
         payload = {
             "product_id": "app_synthetic",
+            "application_access": "both",
+            "application_type": headers["X-Application-Type"],
             "environment": "sandbox",
             "license_id": "lic_synthetic",
             "status": "active",

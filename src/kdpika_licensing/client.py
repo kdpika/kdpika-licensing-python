@@ -31,8 +31,13 @@ from .errors import (
     safe_request_id,
 )
 from .models import HttpResponse, LicenseResult
+from ._applications import application_allowed
 
 _MESSAGES = {
+    "APPLICATION_NOT_ALLOWED": "This license does not include this type of app.",
+    "APPLICATION_TYPE_REQUIRED": "Set application_type to desktop or web in the SDK.",
+    "APPLICATION_TYPE_MISMATCH": "Use separate installation state for the desktop and web app.",
+    "INVALID_APPLICATION_TYPE": "Choose desktop or web as the application type.",
     "INSUFFICIENT_CREDITS": InsufficientCreditsError.safe_message,
     "METERED_ONLINE_REQUIRED": "Connect to the internet to check or use credits.",
     "NOT_METERED_LICENSE": "This license does not use credits.",
@@ -141,6 +146,7 @@ class LicenseClient:
         clock: Callable[[], datetime] | None = None,
         *,
         allow_loopback_http: bool = False,
+        application_type: str = "desktop",
     ) -> None:
         if (
             not isinstance(product, str)
@@ -149,6 +155,9 @@ class LicenseClient:
             or not safe_url(base_url, allow_loopback_http)
         ):
             raise ConfigurationError()
+        if application_type not in ("desktop", "web"):
+            raise ConfigurationError()
+        self.application_type = application_type
         normalized = {"PRODUCTION": "LIVE", "TEST": "SANDBOX"}.get(
             environment.strip().upper(), environment.strip().upper()
         )
@@ -170,7 +179,7 @@ class LicenseClient:
         self._transport = transport or HttpTransport(
             self.base_url, timeout, allow_loopback_http=allow_loopback_http
         )
-        namespace = storage_namespace(self.base_url, self.product, self.environment)
+        namespace = storage_namespace(self.base_url, self.product, self.environment + "|" + self.application_type)
         root = Path(storage_dir) if storage_dir is not None else default_storage_root(application_name)
         self._local = LocalStateStore(root, namespace)
         self._floating = FloatingState(self._local)
@@ -347,7 +356,7 @@ class LicenseClient:
         if session:
             body["session_token"]=session
         try:
-            response=self._transport.request("POST","/api/v1/licenses/"+action,body,{"Authorization":"Bearer "+token,"X-Installation-ID":self.installation_id})
+            response=self._request("POST","/api/v1/licenses/"+action,body,{"Authorization":"Bearer "+token,"X-Installation-ID":self.installation_id})
         except NetworkError:
             return self._error("NETWORK_ERROR","local")
         if not response.ok:
@@ -448,7 +457,7 @@ class LicenseClient:
                 self._fingerprint = collect_fingerprint(self.product)
             except HardwareUnavailable:
                 raise CreditOperationError("HARDWARE_UNAVAILABLE") from None
-            response = self._transport.request("POST", "/api/v1/licenses/consume",
+            response = self._request("POST", "/api/v1/licenses/consume",
                 {"amount": amount, "idempotency_key": idempotency_key, "reason": reason,
                  "fingerprint": self._fingerprint, "session_token": self._floating.token()},
                 {"Authorization": "Bearer " + token, "X-Installation-ID": self.installation_id})
@@ -502,7 +511,7 @@ class LicenseClient:
         if email:
             body["email"] = email.strip()
         try:
-            response = self._transport.request(
+            response = self._request(
                 "POST", "/api/v1/licenses/activate", body, self._product_headers()
             )
         except NetworkError:
@@ -549,7 +558,7 @@ class LicenseClient:
                 self._checkpoint()
                 return cached
         try:
-            response = self._transport.request(
+            response = self._request(
                 "POST",
                 "/api/v1/licenses/validate",
                 {"fingerprint": self._fingerprint, "session_token": self._floating.token()},
@@ -603,7 +612,7 @@ class LicenseClient:
         if not token:
             return self._error("NOT_ACTIVATED", "local")
         try:
-            response = self._transport.request(
+            response = self._request(
                 "POST", "/api/v1/licenses/deactivate", {}, {"Authorization": "Bearer " + token}
             )
         except NetworkError:
@@ -623,7 +632,7 @@ class LicenseClient:
 
     def _revoke_untrusted_activation(self, token: str) -> None:
         try:
-            self._transport.request(
+            self._request(
                 "POST", "/api/v1/licenses/deactivate", {}, {"Authorization": "Bearer " + token}
             )
         except NetworkError:
@@ -650,6 +659,8 @@ class LicenseClient:
             payload = verify(signed, self._verification_key(signed, online=source == "online"))
         except (SignatureVerificationError, NetworkError):
             return self._error("SIGNATURE_INVALID", source, response)
+        if not application_allowed(payload, self.application_type):
+            return self._error("APPLICATION_NOT_ALLOWED", source, response, payload, True)
         device = payload.get("device")
         if (
             payload.get("product_id") != self.product
@@ -715,7 +726,7 @@ class LicenseClient:
         if not online or (self._last_key_fetch is not None and time.monotonic() - self._last_key_fetch < 10):
             raise SignatureVerificationError()
         self._last_key_fetch = time.monotonic()
-        response = self._transport.request("GET", "/api/v1/public-key", None, {})
+        response = self._request("GET", "/api/v1/public-key", None, {})
         key = response.body.get("key") if response.ok else None
         if (
             not isinstance(key, dict)
@@ -778,6 +789,9 @@ class LicenseClient:
             self.storage_security,
             self._now,
         )
+
+    def _request(self, method: str, path: str, body: dict[str, Any] | None, headers: dict[str, str]) -> HttpResponse:
+        return self._transport.request(method, path, body, {**headers, "X-Application-Type": self.application_type})
 
     def _product_headers(self) -> dict[str, str]:
         return {"X-App-ID": self.product, "X-Environment": self.environment}
