@@ -16,7 +16,7 @@ from typing import Any
 
 from ._fingerprint import HardwareUnavailable, collect_fingerprint, matches_binding
 from ._floating import FloatingState, lease_valid
-from ._credits import CreditConsumption, consumption, credit_policy, request_values
+from ._credits import CreditConsumption, consumption, credit_policy, credit_integer, request_values
 from ._storage import CredentialStore, LocalStateStore, default_storage_root, storage_namespace
 from ._transport import HttpTransport, Transport, safe_url
 from ._verification import times, timestamp, trusted_key, verify
@@ -34,6 +34,12 @@ from .models import HttpResponse, LicenseResult
 from ._applications import application_allowed
 
 _MESSAGES = {
+    "CREDIT_PRICE_CHANGED": "The credit price changed. Refresh and confirm it before retrying.",
+    "CREDIT_CODE_UNAVAILABLE": "This credit code cannot be used for this license.",
+    "CREDIT_ACTION_UNAVAILABLE": "The publisher has not enabled this paid action.",
+    "CREDIT_REVIEW_REQUIRED": "A credit purchase needs the publisher’s review.",
+    "CREDIT_ACCESS_DENIED": "This credit item is unavailable for this license.",
+    "CREDIT_LIMIT_EXCEEDED": "The supported credit limit would be exceeded.",
     "APPLICATION_NOT_ALLOWED": "This license does not include this type of app.",
     "APPLICATION_TYPE_REQUIRED": "Set application_type to desktop or web in the SDK.",
     "APPLICATION_TYPE_MISMATCH": "Use separate installation state for the desktop and web app.",
@@ -432,6 +438,58 @@ class LicenseClient:
             self._local.clear_state()
             self._credentials.clear()
 
+    def credit_packs(self) -> dict:
+        """Available packs and server-priced actions, fetched online."""
+        return self._credit_request("packs", {})
+
+    def credit_history(self) -> dict:
+        return self._credit_request("history", {})
+
+    def create_credit_checkout(self, pack_id: str) -> dict:
+        """Open checkout_url in a browser. It contains no license or activation key."""
+        return self._credit_request("checkout", {"pack_id": pack_id})
+
+    def redeem_credits(self, code: str, idempotency_key: str) -> dict:
+        """Persist the request key before sending; retry that same code/key on lost replies."""
+        request_values(1, idempotency_key, None)
+        if not idempotency_key or not isinstance(code, str):
+            raise CreditOperationError("INVALID_REQUEST")
+        return self._credit_request("redeem", {"code": code, "idempotency_key": idempotency_key})
+
+    def _credit_request(self, operation: str, fields: dict) -> dict:
+        with self._local.lock():
+            token = self._credentials.load()
+            if not token:
+                raise CreditOperationError("NOT_ACTIVATED")
+            self._fingerprint = collect_fingerprint(self.product)
+            response = self._request("POST", "/api/v1/credits/" + operation,
+                {**fields, "fingerprint": self._fingerprint, "session_token": self._floating.token()},
+                {"Authorization": "Bearer " + token, "X-Installation-ID": self.installation_id})
+            if not response.ok:
+                raise CreditOperationError(self._response_error(response).error_code or "CREDIT_OPERATION_FAILED", request_id=self._request_id(response))
+            signed = response.body.get("license")
+            if not isinstance(signed, dict):
+                raise SignatureVerificationError()
+            result = self._authenticate(signed, "online", response)
+            if not result.valid or not result.signature_valid:
+                raise CreditOperationError(result.error_code or "SIGNATURE_INVALID", request_id=result.request_id)
+            data = {k: v for k, v in response.body.items() if k != "license"}
+            data["balance"] = result.payload["credit_balance"]
+            if operation == "redeem":
+                receipt = result.payload.get("credit_transaction", {})
+                expected = hashlib.sha256(("code:" + hashlib.sha256(fields["idempotency_key"].encode()).hexdigest()).encode()).hexdigest()
+                if (not isinstance(receipt, dict) or receipt.get("type") != "grant"
+                        or not credit_integer(receipt.get("amount")) or receipt["amount"] == 0
+                        or not isinstance(receipt.get("replayed"), bool)
+                        or not isinstance(receipt.get("id"), str)
+                        or not receipt["id"].startswith("ctx_")
+                        or receipt.get("idempotency_hash") != expected or receipt.get("id") != data.get("transaction_id")):
+                    raise SignatureVerificationError()
+                data["added"] = receipt["amount"]
+                data["replayed"] = receipt["replayed"]
+            self._save_signed_state(signed)
+            return data
+
     def get_balance(self) -> int:
         """Fetch a signed current balance ONLINE; never use an offline balance."""
         with self._local.lock():
@@ -442,7 +500,13 @@ class LicenseClient:
                 raise CreditOperationError("NOT_METERED_LICENSE")
             return int(result.payload["credit_balance"])
 
-    def consume(self, amount: int, idempotency_key: str | None = None, reason: str | None = None) -> CreditConsumption:
+    def consume_action(self, action: str, idempotency_key: str, expected_units: int = 1) -> CreditConsumption:
+        """Use the publisher's server-owned action price; the app cannot choose its cost."""
+        if not isinstance(action, str) or not action or not idempotency_key:
+            raise CreditOperationError("INVALID_REQUEST")
+        return self.consume(expected_units, idempotency_key, action=action)
+
+    def consume(self, amount: int, idempotency_key: str | None = None, reason: str | None = None, *, action: str | None = None) -> CreditConsumption:
         """Charge one online operation. Persist/reuse its request key on uncertain outcomes.
 
         No automatic retries. A replay returns the original receipt; get_balance()
@@ -458,7 +522,7 @@ class LicenseClient:
             except HardwareUnavailable:
                 raise CreditOperationError("HARDWARE_UNAVAILABLE") from None
             response = self._request("POST", "/api/v1/licenses/consume",
-                {"amount": amount, "idempotency_key": idempotency_key, "reason": reason,
+                {"amount": amount, "action": action, "idempotency_key": idempotency_key, "reason": reason,
                  "fingerprint": self._fingerprint, "session_token": self._floating.token()},
                 {"Authorization": "Bearer " + token, "X-Installation-ID": self.installation_id})
             if not response.ok and response.body.get("error", {}).get("code") != "INSUFFICIENT_CREDITS":
@@ -475,10 +539,15 @@ class LicenseClient:
             if not result.payload.get("metered"):
                 raise CreditOperationError("NOT_METERED_LICENSE")
             if not response.ok:
-                if response.status != 402 or result.payload["credit_balance"] >= amount or response.body.get("balance") != result.payload["credit_balance"]:
+                if response.status != 402 or (action is None and result.payload["credit_balance"] >= amount) or response.body.get("balance") != result.payload["credit_balance"]:
                     raise SignatureVerificationError()
                 self._save_signed_state(signed)
                 raise InsufficientCreditsError(int(result.payload["credit_balance"]), request_id=result.request_id)
+            if action is not None:
+                delta = result.payload.get("credit_transaction", {}).get("amount")
+                if not isinstance(delta, int) or isinstance(delta, bool) or delta >= 0:
+                    raise SignatureVerificationError()
+                amount = -delta
             try:
                 receipt = consumption(result.payload, response.body, amount, idempotency_key)
             except ValueError:
@@ -701,8 +770,6 @@ class LicenseClient:
         if payload["metered"]:
             if source != "online":
                 return self._error("METERED_ONLINE_REQUIRED", source, response, payload, True)
-            if payload["credit_balance"] == 0:
-                return self._error("INSUFFICIENT_CREDITS", source, response, payload, True)
         return LicenseResult(
             True,
             source,

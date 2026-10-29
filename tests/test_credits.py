@@ -30,8 +30,6 @@ class CreditTransport(MockTransport):
             self.calls.append((method, path))
             self.changes.update(credit_balance=self.balance, credit_transaction=None)
             if path.endswith("/validate"):
-                if self.balance == 0:
-                    return self.answer({"success": False, "error": {"code": "INSUFFICIENT_CREDITS"}, "balance": 0, "license": self.signed(self.last_device)}, 402)
                 return self.answer({"success": True, "license": self.signed(self.last_device)})
             amount, key = body["amount"], body.get("idempotency_key")
             previous = self.ledger.get(key) if key else None
@@ -78,15 +76,15 @@ def test_consume_replay_historical_receipt_and_current_balance(app):
     assert replay.transaction_id == receipt.transaction_id and replay.replayed and replay.balance == 3
     assert client.get_balance() == 0 and len(transport.ledger) == 2
     result = client.validate()
-    assert result.error_code == "INSUFFICIENT_CREDITS" and result.signature_valid
-    assert not result.feature("export", True)
+    assert result.valid and result.signature_valid
+    assert result.feature("export", True)
 
 
 def test_zero_activation_keeps_identity_for_topup_without_reactivation(app):
     client, transport = app
     transport.balance = 0
     result = client.activate("SYNTHETIC-CREDIT-LICENSE")
-    assert result.error_code == "INSUFFICIENT_CREDITS" and client.activated
+    assert result.valid and client.activated
     assert client.get_balance() == 0
     transport.balance = 4
     assert client.get_balance() == 4 and client.check().valid

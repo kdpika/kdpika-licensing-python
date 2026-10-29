@@ -78,6 +78,21 @@ class AsyncLicenseClient:
         """Release the seat; a successful acknowledgement grants no features."""
         return await asyncio.to_thread(self._client.deactivate)
 
+    async def credit_packs(self) -> dict:
+        return await asyncio.to_thread(self._client.credit_packs)
+
+    async def credit_history(self) -> dict:
+        return await asyncio.to_thread(self._client.credit_history)
+
+    async def create_credit_checkout(self, pack_id: str) -> dict:
+        return await asyncio.to_thread(self._client.create_credit_checkout, pack_id)
+
+    async def redeem_credits(self, code: str, idempotency_key: str) -> dict:
+        return await asyncio.to_thread(self._client.redeem_credits, code, idempotency_key)
+
+    async def consume_action(self, action: str, idempotency_key: str, expected_units: int = 1) -> CreditConsumption:
+        return await asyncio.to_thread(self._client.consume_action, action, idempotency_key, expected_units)
+
     async def get_balance(self) -> int:
         return await asyncio.to_thread(self._client.get_balance)
 

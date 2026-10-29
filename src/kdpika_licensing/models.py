@@ -86,7 +86,7 @@ class LicenseResult:
     def _allowed(self) -> bool:
         if not self.valid or not self.signature_valid or self.status != "active":
             return False
-        if not credit_policy(self._snapshot) or (self._snapshot["metered"] and (self.source != "online" or self._snapshot["credit_balance"] == 0)):
+        if not credit_policy(self._snapshot) or (self._snapshot["metered"] and self.source != "online"):
             return False
         try:
             server, next_check, grace, expiry = times(self._snapshot)
